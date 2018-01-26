@@ -21,15 +21,6 @@ type Data struct {
 
 func handleStore(w http.ResponseWriter, r *http.Request) {
 	// Retrieve values from the request
-
-	// var jsRequest Data
-	// decoder := json.NewDecoder(r.Body)
-	// err := decoder.Decode(&jsRequest)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
-	// defer r.Body.Close()
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
