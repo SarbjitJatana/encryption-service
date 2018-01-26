@@ -15,3 +15,13 @@ func TestEncryptAndDecrypt(t *testing.T) {
 			plaintext, uncipheredtext)
 	}
 }
+
+func TestEncryptSuccessDecryptFail(t *testing.T) {
+	plaintext := "cipher this text"
+	ciphertext, _, _ := Encrypt([]byte(plaintext))
+
+	_, err := Decrypt([]byte("1234567"), ciphertext)
+	if err == nil {
+		t.Error("Expected an error when decrypting using the wrong key")
+	}
+}
