@@ -11,12 +11,40 @@ import (
 	"github.com/SarbjitJatana/encryption-service/server/store"
 )
 
-// Data passed as json structure between client and server
-type Data struct {
-	ID         string
-	Key        string
-	CipherText string
-	PlainText  string
+var (
+	memorystore store.DataStore
+	aescrypto   crypto.Crypto
+)
+
+// Common contains data that is used in both an store repsonse
+// and a retrieve request
+type Common struct {
+	ID  string
+	Key string
+}
+
+// StoreRequest defines the data that has been sent for storing
+type StoreRequest struct {
+	ID        string
+	PlainText string
+}
+
+// StoreResponse contains the key used for encryption which
+// is sent back to the client
+type StoreResponse struct {
+	Common
+}
+
+// RetrieveRequest contains the id plus the key that should be used
+// to decrypt the stored data
+type RetrieveRequest struct {
+	Common
+}
+
+// RetrieveResponse defines the data sent back to the client
+// on a retrieval request which should be the original plain text
+type RetrieveResponse struct {
+	PlainText string
 }
 
 func handleStore(w http.ResponseWriter, r *http.Request) {
@@ -27,15 +55,15 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var jsRequest Data
+	var jsRequest StoreRequest
 	err = json.Unmarshal(body, &jsRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	ciphertext, key, err := crypto.Encrypt([]byte(jsRequest.PlainText))
-	//ciphertext, key, err := crypto.Encrypt([]byte(plaintext))
+	log.Printf("Storing text %s against id %s", jsRequest.PlainText, jsRequest.ID)
+	ciphertext, key, err := aescrypto.Encrypt([]byte(jsRequest.PlainText))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -45,10 +73,14 @@ func handleStore(w http.ResponseWriter, r *http.Request) {
 	log.Printf("/store: ciphertext=%#x", ciphertext)
 
 	// Store the ciphertext along with the id (hashed)
-	store.StoreValue([]byte(jsRequest.ID), ciphertext)
+	memorystore.StoreValue([]byte(jsRequest.ID), ciphertext)
 
 	// Return the key in the response
-	responseData := Data{jsRequest.ID, hex.EncodeToString(key), "", ""}
+	responseData := StoreResponse{
+		Common: Common{
+			jsRequest.ID, hex.EncodeToString(key),
+		},
+	}
 	js, err := json.Marshal(responseData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -66,7 +98,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var jsRequest Data
+	var jsRequest RetrieveRequest
 	err = json.Unmarshal(body, &jsRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -74,7 +106,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the id to retrieve the ciphertext
-	ciphertext, exists := store.RetrieveValue([]byte(jsRequest.ID))
+	ciphertext, exists := memorystore.RetrieveValue([]byte(jsRequest.ID))
 	if !exists {
 		http.Error(w, "No ciphertext found for ID", http.StatusBadRequest)
 		return
@@ -87,7 +119,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	plaintext, err := crypto.Decrypt(key, ciphertext)
+	plaintext, err := aescrypto.Decrypt(key, ciphertext)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -96,7 +128,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	log.Printf("/retrieve: plaintext=%s", plaintext)
 
 	// Return the plaintext in the response
-	responseData := Data{"", "", "", string(plaintext)}
+	responseData := RetrieveResponse{PlainText: string(plaintext)}
 	js, err := json.Marshal(responseData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -107,6 +139,9 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	memorystore = store.NewMemoryStore()
+	aescrypto = crypto.NewAESCrypto()
+
 	http.HandleFunc("/store", handleStore)
 	http.HandleFunc("/retrieve", handleRetrieve)
 
