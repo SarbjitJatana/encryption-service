@@ -5,22 +5,28 @@ import (
 	"encoding/hex"
 )
 
-// store ciphertext
-var cipherStore = make(map[string][]byte)
+// MemoryStore implementation of the datastore interface providing in memory store/retrieve functionality
+type MemoryStore struct {
+	// store ciphertext
+	cipherStore map[string][]byte
+}
+
+// // store ciphertext
+// var cipherStore = make(map[string][]byte)
 
 // StoreValue stores the given ciphertext against the id
 // Hash the id first for extra security
-func StoreValue(id, ciphertext []byte) {
+func (m MemoryStore) StoreValue(id, ciphertext []byte) {
 	hashedID := hash(id)
-	cipherStore[hashedID] = ciphertext
+	m.cipherStore[hashedID] = ciphertext
 }
 
 // RetrieveValue uses the given id to retrieve the ciphertext
 // from the store if it exists.
 // Hashes the id first in order to retrieve the text
-func RetrieveValue(id []byte) ([]byte, bool) {
+func (m MemoryStore) RetrieveValue(id []byte) ([]byte, bool) {
 	hashedID := hash(id)
-	ciphertext, exists := cipherStore[hashedID]
+	ciphertext, exists := m.cipherStore[hashedID]
 
 	return ciphertext, exists
 }
@@ -30,4 +36,11 @@ func hash(id []byte) string {
 	sha256Byte := sha256.Sum256(id)
 	sha256String := hex.EncodeToString(sha256Byte[:])
 	return sha256String
+}
+
+// NewMemoryStore creates a new memory store
+func NewMemoryStore() *MemoryStore {
+	return &MemoryStore{
+		cipherStore: make(map[string][]byte),
+	}
 }
