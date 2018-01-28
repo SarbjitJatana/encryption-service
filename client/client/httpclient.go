@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -25,15 +25,27 @@ type EncryptRequest struct {
 	PlainText string
 }
 
-// EncryptDecryptData contains the key used for encryption
-// The key is sent back from the server on a 'Store' request and
-// sent to the server on a 'Retrieve' request
-type EncryptDecryptData struct {
+// Common contains data that is used in both an encrypt repsonse
+// and a decrypt request
+type Common struct {
 	ID  string
 	Key string
 }
 
-// DecryptResponse defines the data sent back from the server on a retrieval request
+// EncryptResponse contains the key used for encryption which
+// is sent back from the server on a 'Store' request
+type EncryptResponse struct {
+	Common
+}
+
+// DecryptRequest contains the id plus the key that should be used
+// to decrypt the stored data
+type DecryptRequest struct {
+	Common
+}
+
+// DecryptResponse defines the data sent back from the server
+// on a retrieval request
 type DecryptResponse struct {
 	PlainText string
 }
@@ -42,6 +54,8 @@ type DecryptResponse struct {
 // to store the data in encrypted form. The server will send back the encrypted key
 // that the data has been stored with, or an error if not able to store.
 func (c HTTPClient) Store(id, payload []byte) (aesKey []byte, err error) {
+	log.Printf("Storing id %s, text: %s", id, payload)
+
 	// Store the id and payload into a Request
 	encryptRequest := &EncryptRequest{
 		ID:        string(id),
@@ -64,7 +78,7 @@ func (c HTTPClient) Store(id, payload []byte) (aesKey []byte, err error) {
 	}
 	defer resp.Body.Close()
 
-	var jsEncryptResponse EncryptDecryptData
+	var jsEncryptResponse EncryptResponse
 	err = json.Unmarshal(body, &jsEncryptResponse)
 	if err != nil {
 		return nil, err
@@ -77,11 +91,15 @@ func (c HTTPClient) Store(id, payload []byte) (aesKey []byte, err error) {
 // The client sends the original id the data is stored against, plus the key that was used
 // to encrypt the data.
 func (c HTTPClient) Retrieve(id, aesKey []byte) (payLoad []byte, err error) {
+	log.Printf("Retrieving data using id %s, key: %s", id, aesKey)
 	// Store the id and the aesKey into a Request
-	decryptRequest := &EncryptDecryptData{
-		ID:  string(id),
-		Key: string(aesKey),
+	decryptRequest := DecryptRequest{
+		Common: Common{
+			ID:  string(id),
+			Key: string(aesKey),
+		},
 	}
+
 	decryptRequestJSON, err := json.Marshal(decryptRequest)
 
 	requestURL := fmt.Sprintf("%s%s", c.ServerURL, retrievePath)
@@ -108,15 +126,9 @@ func (c HTTPClient) Retrieve(id, aesKey []byte) (payLoad []byte, err error) {
 	return []byte(jsDecryptResponse.PlainText), nil
 }
 
-// NewHTTPClient uses the URL passed in to create a
+// NewHTTPClient creates a new HTTP client with configured URL
 func NewHTTPClient(serverURL string) *HTTPClient {
 	return &HTTPClient{
 		ServerURL: serverURL,
 	}
-}
-
-func postRequest(URL string, jsonData io.Reader) (*http.Response, error) {
-	resp, err := http.Post(URL, "application/json", jsonData)
-
-	return resp, err
 }
