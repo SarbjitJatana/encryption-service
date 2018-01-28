@@ -9,12 +9,15 @@ import (
 	"io"
 )
 
+// AESCrypto implementation of the crypto interface providing AES encrypt/decrypt functionality
+type AESCrypto struct{}
+
 // Encrypt uses AES encryption on the supplied plain text.
 // The encrypted text is then stored.
 // The ciphertext is returned to the user.
 // The key that was used to encrypt the data is also returned
 // or an error if encryption failed.
-func Encrypt(plaintext []byte) ([]byte, []byte, error) {
+func (a AESCrypto) Encrypt(plaintext []byte) ([]byte, []byte, error) {
 	key := generateKey()
 
 	block, err := aes.NewCipher(key)
@@ -46,7 +49,7 @@ func Encrypt(plaintext []byte) ([]byte, []byte, error) {
 // Decrypt uses the key that was used to encrypt the ciphertext to
 // convert it back to plaintext.
 // The plaintext is returned or an error if there was a problem decrypting.
-func Decrypt(key, ciphertext []byte) ([]byte, error) {
+func (a AESCrypto) Decrypt(key, ciphertext []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -81,4 +84,9 @@ func generateKey() []byte {
 		// handle it
 	}
 	return key
+}
+
+// NewAESCrypto creates a new AES crypto
+func NewAESCrypto() *AESCrypto {
+	return &AESCrypto{}
 }
