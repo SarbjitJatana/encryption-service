@@ -3,9 +3,9 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -54,8 +54,6 @@ type DecryptResponse struct {
 // to store the data in encrypted form. The server will send back the encrypted key
 // that the data has been stored with, or an error if not able to store.
 func (c HTTPClient) Store(id, payload []byte) (aesKey []byte, err error) {
-	log.Printf("Storing id %s, text: %s", id, payload)
-
 	// Store the id and payload into a Request
 	encryptRequest := &EncryptRequest{
 		ID:        string(id),
@@ -91,7 +89,6 @@ func (c HTTPClient) Store(id, payload []byte) (aesKey []byte, err error) {
 // The client sends the original id the data is stored against, plus the key that was used
 // to encrypt the data.
 func (c HTTPClient) Retrieve(id, aesKey []byte) (payLoad []byte, err error) {
-	log.Printf("Retrieving data using id %s, key: %s", id, aesKey)
 	// Store the id and the aesKey into a Request
 	decryptRequest := DecryptRequest{
 		Common: Common{
@@ -109,6 +106,13 @@ func (c HTTPClient) Retrieve(id, aesKey []byte) (payLoad []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
+	// Handle the server error - at the moment only 2 types being returned
+	switch resp.StatusCode {
+	case http.StatusNotFound, http.StatusInternalServerError:
+		errbody, _ := ioutil.ReadAll(resp.Body)
+		return nil, errors.New(string(errbody))
+	}
+	defer resp.Body.Close()
 
 	// Read the data sent back, which should contain the encryption key
 	body, err := ioutil.ReadAll(resp.Body)
