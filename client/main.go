@@ -43,7 +43,8 @@ func main() {
 		// Store the value along with the id
 		key, err := client.Store([]byte(*id), []byte(*plaintext))
 		if err != nil {
-			log.Printf("Error %s", err.Error())
+			log.Printf("Error: %s", err.Error())
+			os.Exit(1)
 		}
 		log.Printf("key: %s", key)
 	}
@@ -52,7 +53,8 @@ func main() {
 		// Retrieve the value stored using the key
 		plaintext, err := client.Retrieve([]byte(*id), []byte(*key))
 		if err != nil {
-			log.Printf("Error %s", err.Error())
+			log.Printf("Error: %s", err.Error())
+			os.Exit(1)
 		}
 		log.Printf("text: %s", plaintext)
 	}
