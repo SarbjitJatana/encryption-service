@@ -108,7 +108,7 @@ func handleRetrieve(w http.ResponseWriter, r *http.Request) {
 	// Use the id to retrieve the ciphertext
 	ciphertext, exists := memorystore.RetrieveValue([]byte(jsRequest.ID))
 	if !exists {
-		http.Error(w, "No ciphertext found for ID", http.StatusBadRequest)
+		http.Error(w, "No ciphertext found for ID", http.StatusNotFound)
 		return
 	}
 
